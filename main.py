@@ -7,6 +7,16 @@ Created on Sat Dec  8 15:14:20 2018
 """
 import hashlib
 import os
+import logging
+import asyncio
+import sys
+import time
+import socket
+
+from kademlia.network import Server
+from kademlia.routing import RoutingTable
+
+from dht_bootstrap_node import *
 
 block_size = 1024*4 #16k block size
 debug = True
@@ -69,5 +79,35 @@ def addFile(filepath):
 # call addFile()
 
 # Store List() of file chunks
+
+if __name__ == '__main__':
+    print("running")
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    log = logging.getLogger('kademlia')
+    log.addHandler(handler)
+    log.setLevel(logging.DEBUG)
+
+    target = os.getenv('TARGET') #Get env from docker
+    if target == 'bootstrap':
+        launch_bootstrap()
+    else:
+        loop = asyncio.get_event_loop()
+        loop.set_debug(True)
         
-addFile("./LICENSE")
+        server = Server()
+        server.listen(8469)
+        bootstrap_ip = socket.gethostbyname('bootstrap')
+        bootstrap_node = (bootstrap_ip, 8468)
+        loop.run_until_complete(server.bootstrap([bootstrap_node]))
+        
+        print(server.bootstrappableNeighbors())
+        loop.run_until_complete(server.set("key", "a"*1024*4))
+        time.sleep(1)
+        result = loop.run_until_complete(server.get('key'))
+        server.stop()
+        loop.close()
+
+        print("Get result:", result)
+        #addFile("./LICENSE")

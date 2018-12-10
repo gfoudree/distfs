@@ -1,0 +1,12 @@
+version: '3'
+services:
+  bootstrap:
+    environment:
+      - TARGET=bootstrap
+    build:
+      context: .
+  peer:
+    depends_on:
+      - bootstrap
+    build:
+      context: .
