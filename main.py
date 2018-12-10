@@ -191,7 +191,7 @@ class IPFSNode():
         
         return data
     
-    def getFile(self, hsh: str):
+    def getFile(self, hsh: str) -> bytes:
         masterFileRecord = self.getDHTKey(hsh) #Get metadata
         metadata = None
         
