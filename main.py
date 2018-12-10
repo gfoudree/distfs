@@ -14,6 +14,7 @@ import time
 import socket
 import zlib
 import json
+import threading
 
 from kademlia.network import Server
 from kademlia.routing import RoutingTable
@@ -57,6 +58,7 @@ class IPFSNode():
     def __init__ (self):
         self.server = Server()
         self.server.listen(8469)
+        self.has_list = []
         
         bootstrap_ip = socket.gethostbyname('bootstrap')
         self.bootstrap_node = (bootstrap_ip, 8468)
@@ -70,6 +72,52 @@ class IPFSNode():
         
         for node in neighbors:
             print("DHT Peer found! {0}:{1}".format(node[0], node[1]))
+            
+        print("Starting TCP transfer server")
+        self.tcpThread = threading.Thread(target = self.startTCPServer)
+        self.tcpThread.start()
+        
+    def startTCPServer(self):
+        host = '0.0.0.0'
+        port = 9528
+        self.running = True
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM, 0)
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+       
+        s.bind((host, port))
+        s.listen(10)
+        
+        while self.running:
+            conn, addr = s.accept()
+            print("Connection from " + str(addr))
+            while 1:
+                data = conn.recv(4096)
+                if not data:
+                    break
+                # Check if data is correct format
+                data = data.decode('utf-8')
+                if (len(data) == 133 or len(data) == 134) and data[0:5] == 'hash=':
+                    requestedHash = data[5:134]
+                    print("looking for hash " + requestedHash)
+                    sys.stdout.flush()
+                    #Find requested hash in our data
+                    found = False
+                    for has_chunk in self.has_list:
+                        if has_chunk[1] in requestedHash:
+                            conn.send(has_chunk[0]) #Send the found data
+                            found = True
+                            break
+                    
+                    if not found:
+                        conn.send(b"notfound")
+                else:
+                    conn.send(b"invalid_request")
+                    print(data)
+                    sys.stdout.flush()
+                print(data)
+                
+            conn.close()
+        s.close()
         
     def chunkFile(self, data: str):
         chunks = []
@@ -106,6 +154,9 @@ class IPFSNode():
                 ipfsBlobs.append(ipfsBlob)
                 
                 ipfsList.addLink(chunk['hash'], chunk['size'])
+                
+                #Add data to our has list
+                self.has_list.append((chunk['data'], chunk['hash']))
             
             print(ipfsList)
             if debug:
@@ -151,7 +202,7 @@ class IPFSNode():
     def __del__(self):
         self.server.stop()
         self.loop.close()
-        
+        self.tcpThread.join()
         
 if __name__ == '__main__':
     print("running")
