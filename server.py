@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import asyncio
 
 from main import IPFSNode
 from dht_bootstrap_node import launch_bootstrap
@@ -37,3 +38,14 @@ if __name__ == '__main__':
     if fileName != None:
         print("Adding file to IPFS network")
         ipfsNode.addFile(fileName, False)
+    
+    loop = asyncio.get_event_loop()
+    loop.set_debug(True)
+    
+    try:
+        loop.run_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        ipfsNode.server.stop()
+    loop.close()
