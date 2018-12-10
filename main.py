@@ -60,6 +60,7 @@ class IPFSNode():
         self.server.listen(8469)
         self.has_list = []
         
+        self.local_ip = socket.gethostbyname(socket.gethostname())
         bootstrap_ip = socket.gethostbyname('bootstrap')
         self.bootstrap_node = (bootstrap_ip, 8468)
         
@@ -90,6 +91,7 @@ class IPFSNode():
         while self.running:
             conn, addr = s.accept()
             print("Connection from " + str(addr))
+            sys.stdout.flush()
             while 1:
                 data = conn.recv(4096)
                 if not data:
@@ -112,9 +114,8 @@ class IPFSNode():
                         conn.send(b"notfound")
                 else:
                     conn.send(b"invalid_request")
-                    print(data)
-                    sys.stdout.flush()
-                print(data)
+                print("Request: " + data)
+                sys.stdout.flush()
                 
             conn.close()
         s.close()
@@ -169,11 +170,27 @@ class IPFSNode():
                 
                 self.setDHTKey(fileHash, str(ipfsList)) #Add master file record to DHT
                 
-                for blob in ipfsBlobs:
-                    self.setDHTKey(blob.getData()['hash'], blob.getData()['data'])
+                for blob in ipfsBlobs: #Add items onto DHT
+                    block = blob.getData()
+                    if len(block['data']) > 1024: #If the block is bigger than 1k, add to local TCP server
+                        self.setDHTKey(block['hash'], 'ip=' + self.local_ip)
+                    else: #Otherwise store directly on DHT
+                        self.setDHTKey(blob.getData()['hash'], blob.getData()['data'])
                 
                 return fileHash
-                    
+            
+    def TCPGet(self, host, hsh):
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.connect((host, 9528))
+        if not isinstance(hsh, bytes):
+            hsh = hsh.encode()
+            
+        s.send(b'hash=' + hsh + b'\n')
+        data = s.recv(8192)
+        s.close()
+        
+        return data
+    
     def getFile(self, hsh: str):
         masterFileRecord = self.getDHTKey(hsh) #Get metadata
         metadata = None
@@ -187,9 +204,16 @@ class IPFSNode():
             
         fileContents = b''
         for link in metadata['links']:
-            data = self.getDHTKey(link['hash'])
-            if not data:
+            DHTData = self.getDHTKey(link['hash'])
+            data = None
+            if not DHTData:
                 raise Exception("Unable to get part of file with hash " + link['hash'])
+                
+            if DHTData[0:3] == 'ip=': #Need to get data via TCP not DHT
+                data = self.TCPGet(DHTData[3:], link['hash'])
+            else:
+                data = DHTData
+                
             if len(data) != link['size']:
                 raise Exception("Hash value ({}) has invalid or corrupted length".format(link['hash']))
             
