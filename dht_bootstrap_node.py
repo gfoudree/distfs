@@ -3,10 +3,10 @@ import asyncio
 
 from kademlia.network import Server
 
-def launch_bootstrap(listenPort: int = 8468):
+def launch_bootstrap():
     
     server = Server()
-    server.listen(listenPort)
+    server.listen(8468)
     
     loop = asyncio.get_event_loop()
     loop.set_debug(True)
