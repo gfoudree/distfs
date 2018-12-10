@@ -23,7 +23,7 @@ server.listen(8469)
 bootstrap_node = (sys.argv[1], int(sys.argv[2]))
 loop.run_until_complete(server.bootstrap([bootstrap_node]))
 
-loop.run_until_complete(server.set("key", "secretval"))
+loop.run_until_complete(server.set("key", "a"*1024*4))
 
 result = loop.run_until_complete(server.get(sys.argv[3]))
 server.stop()
