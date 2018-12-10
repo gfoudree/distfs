@@ -36,11 +36,12 @@ class Blob():
         return {"data": self.data, "hash" : self.hsh}
     
 class List():
-    def __init__(self, fileHash: str, fileName: str, fileLen: int):
+    def __init__(self, fileHash: str, fileName: str, fileLen: int, compression: bool):
         self.links = []
         self.fileHash = fileHash
         self.fileName = fileName
         self.fileLen = fileLen
+        self.compression = compression
         
     def addLink(self, hsh, size):
         self.links.append({"hash" : hsh, "size" : size})
@@ -49,7 +50,8 @@ class List():
         return self.links
     
     def __str__(self):
-        return str({'fileHash' : self.fileHash, 'fileName' : self.fileName, 'fileLen' : self.fileLen, 'links' : self.links})
+        return str({'fileHash' : self.fileHash, 'fileName' : self.fileName, 
+                    'fileLen' : self.fileLen, 'links' : self.links, 'compression' : self.compression})
         
 class IPFSNode():
     def __init__ (self):
@@ -83,15 +85,19 @@ class IPFSNode():
     def getDHTKey(self, key: str) -> str:
         return self.loop.run_until_complete(self.server.get(key))
     
-    def addFile(self, filepath: str):
+    def addFile(self, filepath: str, compression: bool):
         with open(filepath, 'rb') as f:
             data = f.read()
             fileHash = hashlib.sha512(data).hexdigest()
             fileLen = len(data)
+            
+            if compression: #Compress data if necessary
+                data = zlib.compress(data, level = 7)
+            
             fileChunks = self.chunkFile(data)
             fileName = os.path.basename(filepath)
             
-            ipfsList = List(fileHash, fileName, fileLen)
+            ipfsList = List(fileHash, fileName, fileLen, compression)
             ipfsBlobs = []
             
             for chunk in fileChunks:
@@ -123,7 +129,7 @@ class IPFSNode():
         
         #Convert from string dictionary to python dictionary
         if masterFileRecord and len(masterFileRecord) > 1:
-            masterFileRecord = masterFileRecord.replace("'", "\"") #transform into valid JSON
+            masterFileRecord = masterFileRecord.replace("'", "\"").replace('True', 'true').replace('False', 'false') #transform into valid JSON
             metadata = json.loads(masterFileRecord)
         else:
             raise Exception("Unable to locate file record on network!")
@@ -138,6 +144,8 @@ class IPFSNode():
             
             fileContents += data
             
+        if metadata['compression']:
+            fileContents = zlib.decompress(fileContents)
         return fileContents
     
     def __del__(self):
@@ -145,7 +153,6 @@ class IPFSNode():
         self.loop.close()
         
         
-
 if __name__ == '__main__':
     print("running")
     handler = logging.StreamHandler()
@@ -160,9 +167,7 @@ if __name__ == '__main__':
         launch_bootstrap()
     else:
        ipfsNode = IPFSNode()
-       ipfsNode.setDHTKey('key', 'supersecret')
-       #print(ipfsNode.getDHTKey('key'))
-       storedHash = ipfsNode.addFile('./LICENSE')
+       storedHash = ipfsNode.addFile('./LICENSE', False)
        print("{} stored on IPFS".format(storedHash))
        
        retrievedFile = ipfsNode.getFile(storedHash)
