@@ -55,14 +55,14 @@ class List():
                     'fileLen' : self.fileLen, 'links' : self.links, 'compression' : self.compression})
         
 class IPFSNode():
-    def __init__ (self):
+    def __init__ (self, listenPort: int = 8469, bootstrapHost: str = 'bootstrap', bootstrapPort: int = 8468):
         self.server = Server()
-        self.server.listen(8469)
+        self.server.listen(listenPort)
         self.has_list = []
         
         self.local_ip = socket.gethostbyname(socket.gethostname())
-        bootstrap_ip = socket.gethostbyname('bootstrap')
-        self.bootstrap_node = (bootstrap_ip, 8468)
+        bootstrap_ip = socket.gethostbyname(bootstrapHost)
+        self.bootstrap_node = (bootstrap_ip, bootstrapPort)
         
         self.loop = asyncio.get_event_loop()
         self.loop.set_debug(True)
