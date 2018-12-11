@@ -55,14 +55,20 @@ class List():
                     'fileLen' : self.fileLen, 'links' : self.links, 'compression' : self.compression})
         
 class IPFSNode():
-    def __init__ (self):
+    def __init__ (self, bootstrapHost: str = 'bootstrap'):
         self.server = Server()
         self.server.listen(8469)
         self.has_list = []
         
-        self.local_ip = socket.gethostbyname(socket.gethostname())
-        bootstrap_ip = socket.gethostbyname('bootstrap')
-        self.bootstrap_node = (bootstrap_ip, 8468)
+        # Hack to get the "deafult" IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('1.1.1.1', 80))
+        self.local_ip = s.getsockname()[0]
+        s.close()
+
+        #self.local_ip = socket.gethostbyname(socket.gethostname())
+        bootstrap_ip = socket.gethostbyname(bootstrapHost)
+        self.bootstrap_node = (bootstrap_ip, 8469)
         
         self.loop = asyncio.get_event_loop()
         self.loop.set_debug(True)
@@ -191,7 +197,7 @@ class IPFSNode():
         
         return data
     
-    def getFile(self, hsh: str):
+    def getFile(self, hsh: str) -> (bytes, dict):
         masterFileRecord = self.getDHTKey(hsh) #Get metadata
         metadata = None
         
@@ -221,7 +227,7 @@ class IPFSNode():
             
         if metadata['compression']:
             fileContents = zlib.decompress(fileContents)
-        return fileContents
+        return (fileContents, metadata)
     
     def __del__(self):
         self.server.stop()
@@ -245,6 +251,6 @@ if __name__ == '__main__':
        storedHash = ipfsNode.addFile('./LICENSE', False)
        print("{} stored on IPFS".format(storedHash))
        
-       retrievedFile = ipfsNode.getFile(storedHash)
+       (retrievedFile, metadata) = ipfsNode.getFile(storedHash)
        
        print(b"Original file contents recovered:\n" + retrievedFile)
