@@ -197,7 +197,7 @@ class IPFSNode():
         
         return data
     
-    def getFile(self, hsh: str) -> bytes:
+    def getFile(self, hsh: str) -> (bytes, dict):
         masterFileRecord = self.getDHTKey(hsh) #Get metadata
         metadata = None
         
@@ -227,7 +227,7 @@ class IPFSNode():
             
         if metadata['compression']:
             fileContents = zlib.decompress(fileContents)
-        return fileContents
+        return (fileContents, metadata)
     
     def __del__(self):
         self.server.stop()
@@ -251,6 +251,6 @@ if __name__ == '__main__':
        storedHash = ipfsNode.addFile('./LICENSE', False)
        print("{} stored on IPFS".format(storedHash))
        
-       retrievedFile = ipfsNode.getFile(storedHash)
+       (retrievedFile, metadata) = ipfsNode.getFile(storedHash)
        
        print(b"Original file contents recovered:\n" + retrievedFile)

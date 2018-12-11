@@ -16,7 +16,7 @@ if __name__ == '__main__':
     if len(sys.argv) != 3:
         printUsage()
         exit(1)
-    
+
     # Parse arguments
     bootstrapHost = sys.argv[1]
     fileHash = sys.argv[2]
@@ -24,4 +24,10 @@ if __name__ == '__main__':
     print("Getting file with hash: {}".format(fileHash))
 
     ipfsNode = IPFSNode(bootstrapHost)
-    retrievedFile = ipfsNode.getFile(fileHash)
+    (retrievedFile, metadata) = ipfsNode.getFile(fileHash)
+    print("Saving downloaded file to {}.download".format(metadata['fileName']))
+    
+    # Save file
+    with open(metadata['fileName'] + '.download', 'wb') as f:
+        f.write(retrievedFile)
+    exit(0)
