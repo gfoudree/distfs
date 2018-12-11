@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import sys
+import os
 
 from main import IPFSNode
 
@@ -30,4 +31,4 @@ if __name__ == '__main__':
     # Save file
     with open(metadata['fileName'] + '.download', 'wb') as f:
         f.write(retrievedFile)
-    exit(0)
+    os._exit(0)
