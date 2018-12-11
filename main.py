@@ -60,7 +60,13 @@ class IPFSNode():
         self.server.listen(8469)
         self.has_list = []
         
-        self.local_ip = socket.gethostbyname(socket.gethostname())
+        # Hack to get the "deafult" IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('1.1.1.1', 80))
+        self.local_ip = s.getsockname()[0]
+        s.close()
+
+        #self.local_ip = socket.gethostbyname(socket.gethostname())
         bootstrap_ip = socket.gethostbyname(bootstrapHost)
         self.bootstrap_node = (bootstrap_ip, 8469)
         
